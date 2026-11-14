@@ -81,11 +81,21 @@ def prepare(df, mapping, exclude_totals=True):
             metrics[field] = number(result[col]) if field not in ('動画タイトル', '動画ID', '平均視聴時間') else result[col]
     return result, metrics, int(mask.sum())
 
+def protect_csv_cell(value):
+    """数式開始文字、先頭の制御文字を文字列として扱わせる。"""
+    if not isinstance(value, str):
+        return value
+    if (value.lstrip().startswith(('=', '+', '-', '@'))
+            or (value and ord(value[0]) < 32)):
+        return "'" + value
+    return value
+
+
 def safe_csv(df):
-    """表計算ソフトが文字列を数式として実行しないよう保護する。"""
+    """セルと列名を保護する。再インポート時にも保護用の引用符を保持する。"""
     safe = df.copy()
+    # dtypeに依存せず処理し、カテゴリ型等の文字列も保護する。
     for col in safe.columns:
-        if safe[col].dtype == object or pd.api.types.is_string_dtype(safe[col]):
-            safe[col] = safe[col].map(lambda x: "'" + x if isinstance(x, str) and x.lstrip().startswith(('=', '+', '-', '@')) else x)
-    safe.columns = ["'" + str(c) if str(c).lstrip().startswith(('=', '+', '-', '@')) else c for c in safe.columns]
+        safe[col] = safe[col].map(protect_csv_cell)
+    safe.columns = [protect_csv_cell(str(c)) for c in safe.columns]
     return safe.to_csv(index=False).encode('utf-8-sig')

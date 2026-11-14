@@ -56,5 +56,14 @@ class CSVTests(unittest.TestCase):
         self.assertIn("' @SUM(A1)", content)
         self.assertIn('通常', content)
 
+    def test_csv_control_characters_and_headers(self):
+        import csv
+        import io
+        values = ['\ttext', '\rtext', '\ntext', '  =1+1', '+1', '-1', '@SUM(A1)', '通常']
+        frame = pd.DataFrame({'\t見出し': values})
+        result = list(csv.reader(io.StringIO(safe_csv(frame).decode('utf-8-sig'))))
+        self.assertEqual(result[0], ["'\t見出し"])
+        self.assertEqual([row[0] for row in result[1:]], ["'" + v for v in values[:-1]] + ['通常'])
+
 if __name__ == '__main__':
     unittest.main()
